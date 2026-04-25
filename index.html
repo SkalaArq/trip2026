@@ -1,0 +1,1121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>World Cup 2026 Itinerary Operations Deck</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+    
+    <style>
+        /* =========================================================
+           1. GLOBAL CONFIGURATION & VARIABLES
+           ========================================================= */
+        :root {
+            --night-factor: 0%;
+            --day-bg: #F2EDD7;        
+            --day-bars: #1C1C2E;      
+            --night-bg: #080810;
+            --night-bars: #0D0D1A;
+
+            --bg-main: color-mix(in srgb, var(--night-bg) var(--night-factor), var(--day-bg));
+            --panam-blue: color-mix(in srgb, var(--night-bars) var(--night-factor), var(--day-bars));
+
+            --panam-accent: #1C1C2E;
+            --local-time-font-size: 1.2vw;
+            --title-font-size: 0.9vw; 
+            --sub-clock-y-offset: -0.25vh; 
+            --clipper-blue2: #4A7FB5;
+            --cadmium-gold: #D4880A;   
+            --border-gold: #C8780A;    
+            --yuki-pink: #C0392B;      
+            --nico-sky: #2980B9;       
+            --font-solari: 'VT323', monospace;
+            --line-width: 3px;         
+            --safety-orange: #FF5733;
+            --bg-line-opacity: 0.4;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body, html { 
+            height: 100%; width: 100%;
+            font-family: var(--font-solari); 
+            background-color: var(--bg-main); 
+            overflow: hidden; 
+        }
+        
+        #app-container { display: flex; flex-direction: row; height: 100vh; width: 100vw; overflow: hidden; }
+
+        /* PANES */
+        #left-pane { width: 82%; display: flex; flex-direction: column; height: 100%; }
+        #map-section { flex: 1; position: relative; }
+
+        /* HEADER & BAR */
+        #top-ops-bar {
+            height: 7vh; 
+            background: var(--panam-blue); 
+            border-bottom: 3px solid var(--border-gold);
+            display: flex;
+            flex-direction: row;
+            flex-shrink: 0;
+            z-index: 1001;
+        }
+        
+        .header-element { 
+            flex: 1; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            height: 100%; 
+        }
+
+        #header-title { border-right: 2px solid rgba(212,136,10,0.3); }
+        #header-title-text { color: var(--cadmium-gold); font-weight: 900; font-size: var(--title-font-size); text-transform: uppercase; text-align: center; line-height: 1.05; letter-spacing: 2px; }
+
+        #local-display-hub { display: flex; flex-direction: column; align-items: center; text-align: center; width: 100%; }
+        #local-city { color: #fff; font-size: 1.2vw; letter-spacing: 2px; text-transform: uppercase; font-weight: bold; line-height: 1.1; margin-bottom: 0.25vh; }
+        .clock-row { display: flex; flex-direction: row; align-items: baseline; gap: 0.5vw; justify-content: center; width: 100%; }
+        #local-clock { color: var(--cadmium-gold); font-size: var(--local-time-font-size); font-weight: bold; line-height: 1; }
+        .sub-clock { color: #fff; font-size: 0.7vw; font-weight: 700; letter-spacing: 1px; position: relative; top: var(--sub-clock-y-offset); }
+
+        /* RIGHT SIDEBAR */
+        #right-sidebar { 
+            width: 18%; background-color: var(--panam-blue); color: var(--cadmium-gold); 
+            padding: 1vw; display: flex; flex-direction: column; gap: 1.5vh; 
+            border-left: var(--line-width) solid var(--border-gold); 
+            overflow-y: auto; flex-shrink: 0; height: 100%;
+        }
+
+        /* PASSENGER GROUPS */
+        .passenger-group {
+            display: flex;
+            flex-direction: column;
+            gap: 1vh;
+            padding: 1vh 0.5vw;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .yuki-group {
+            background-color: color-mix(in srgb, var(--yuki-pink) 20%, transparent);
+            border-left: 4px solid var(--yuki-pink);
+        }
+        .nico-group {
+            background-color: color-mix(in srgb, var(--nico-sky) 20%, transparent);
+            border-left: 4px solid var(--nico-sky);
+        }
+
+        /* TOGGLE BUTTONS */
+        .tgl-btn {
+            width: 100%; padding: 0.5vh; font-family: var(--font-solari); font-size: 1.2vw; font-weight: bold; cursor: pointer;
+            border-radius: 0; border: 2px solid transparent; transition: all 0.3s ease; text-align: center; letter-spacing: 1px;
+        }
+        #toggle-yuki         { background: transparent; color: #888; border: 1px solid #555; }
+        #toggle-yuki.active  { background: var(--yuki-pink); color: #fff; border: 2px solid var(--yuki-pink); box-shadow: none; }
+        #toggle-nico         { background: transparent; color: #888; border: 1px solid #555; }
+        #toggle-nico.active  { background: var(--nico-sky); color: #fff; border: 2px solid var(--nico-sky); box-shadow: none; }
+
+        /* SOLARIS FLAPS & ASSETS */
+        .sidebar-solaris-element {
+            transition: opacity 0.4s ease;
+            width: 100%;
+        }
+        
+        .passenger-header-block { 
+            display: flex; 
+            align-items: center; 
+            justify-content: space-between; 
+            width: 100%;
+        }
+
+        .flaps-container { display: flex; flex-direction: column; gap: 0.3vh; flex: 1; margin: 0 0.5vw; }
+        .flap-board { display: flex; gap: 1px; width: 100%; flex-shrink: 0; }
+        .flap-char { 
+            flex: 1; height: 2.2vh; background-color: #111; color: #ffffff; 
+            font-size: 0.9vw; font-weight: bold; display: flex; align-items: center; 
+            justify-content: center; border: 1px solid #000; 
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.15), 0 1px 2px rgba(0,0,0,0.6); 
+        }
+        .airline-logo-box { 
+            width: 2.5vw; height: 2.5vw; background-color: #111; border-radius: 0; 
+            display: flex; align-items: center; justify-content: center; 
+            border: 1px solid #000; overflow: hidden; position: relative; flex-shrink: 0; 
+        }
+        .airline-logo-box img { width: 100%; height: 100%; object-fit: contain; }
+        .sq-scale { transform: scale(2.0); transform-origin: center; }
+        .abstract-icon { font-size: 1.5vw; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+
+        /* MAP CONFIG */
+        #map { height: 100%; width: 100%; background: #e8e0d8; }
+        .leaflet-container { background: #e8e0d8 !important; }
+
+        .day-tiles { filter: brightness(0.97) contrast(1.05) saturate(0.85); }
+        .night-tiles { filter: invert(1) hue-rotate(180deg) brightness(3) contrast(1.5); }
+
+        .radar-sweep-line { filter: drop-shadow(0px 0px 4px rgba(255, 87, 51, 0.8)) drop-shadow(0px 0px 8px rgba(255, 87, 51, 0.6)); }
+
+        .leaflet-tooltip.country-label { background-color: rgba(0, 34, 68, 0.85) !important; border: 1px solid var(--cadmium-gold) !important; color: #fff !important; font-size: 0.9vw !important; text-transform: uppercase !important; letter-spacing: 2px !important; font-family: var(--font-solari) !important; padding: 2px 6px !important; border-radius: 0 !important; pointer-events: none !important; }
+        .leaflet-tooltip-top:before, .leaflet-tooltip-bottom:before, .leaflet-tooltip-left:before, .leaflet-tooltip-right:before { display: none !important; }
+
+        .hide-city-labels .country-label { opacity: 0 !important; }
+        .leaflet-div-icon { background: none !important; border: none !important; box-shadow: none !important; }
+
+        /* ANTI-FLASH LEAFLET OVERRIDES */
+        .leaflet-tile-container { will-change: transform; }
+        .leaflet-zoom-animated { will-change: transform; }
+        .leaflet-tile { transition: none !important; }
+
+        /* DAY SELECTOR & BOARDING PASS */
+        #day-selector-container { display: flex; flex-direction: column; gap: 0.5vh; margin-bottom: 0.5vh; }
+        #day-selector-container label { color: var(--cadmium-gold); font-weight: bold; font-size: 1vw; text-transform: uppercase; letter-spacing: 1px; }
+        #day-select { background-color: #001A35; color: #fff; border: 2px solid var(--cadmium-gold); border-radius: 0; padding: 0.5vh 0.5vw; font-family: var(--font-solari); font-size: 1.2vw; cursor: pointer; text-transform: uppercase; font-weight: bold; }
+
+        .boarding-pass {
+            background: #fdfbf7; color: #002B5C; border-radius: 0; padding: 1.5vh 1vw;
+            border: 3px solid #1C1C2E; box-shadow: none;
+            display: flex; flex-direction: column; gap: 1vh; position: relative; overflow: visible;
+        }
+
+        .boarding-pass::before, .boarding-pass::after {
+            content: ''; position: absolute; top: 4.5vh; width: 1.5vw; height: 1.5vw; 
+            background: var(--panam-blue); border-radius: 50%; box-shadow: inset 2px 2px 5px rgba(0,0,0,0.5);
+            transition: background-color 0.8s ease; 
+        }
+        .boarding-pass::before { left: -0.75vw; }
+        .boarding-pass::after { right: -0.75vw; }
+
+        .bp-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #1C1C2E; padding-bottom: 1vh; }
+        .bp-airline { font-weight: 900; font-size: 1.6vw; letter-spacing: 2px; }
+        .bp-icon { font-size: 2vw; color: var(--panam-accent); }
+
+        .bp-section { border-bottom: 1px solid #C8C0A8; padding: 1vh 0; display: flex; flex-direction: column; gap: 0.2vh; }
+        .bp-section:last-of-type { border-bottom: none; }
+
+        .bp-label { font-size: 0.9vw; color: #887a65; text-transform: uppercase; font-weight: bold; letter-spacing: 1px; }
+        .bp-value { font-size: 1.3vw; font-weight: 900; text-transform: uppercase; color: #001A35; }
+
+        .bp-activity-table { width: 100%; border-collapse: collapse; margin-top: 0.5vh; }
+        .bp-activity-table th { font-size: 1vw; text-align: left; border-bottom: 2px solid #ddd; padding-bottom: 0.2vh; }
+        .bp-activity-table td { padding: 0.5vh 0.2vw; font-size: 1.1vw; font-weight: bold; vertical-align: top; color: #001A35; }
+        .bp-activity-table td:first-child { color: #887a65; font-size: 0.9vw; }
+
+        .bp-footer { padding-top: 1vh; display: flex; flex-direction: column; align-items: center; gap: 0.5vh; border-top: 2px solid #1C1C2E; margin-top: 1vh; }
+        .barcode { 
+            height: 4vh; width: 100%; opacity: 0.85;
+            background: repeating-linear-gradient(90deg, #001A35, #001A35 2px, transparent 2px, transparent 4px, #001A35 4px, #001A35 5px, transparent 5px, transparent 8px, #001A35 8px, #001A35 12px, transparent 12px, transparent 14px); 
+        }
+        .bp-footer-text { font-size: 1vw; letter-spacing: 3px; font-weight: bold; color: #887a65; }
+
+        /* CONTROL DECK */
+        #control-deck { 
+            height: 17vh; background-color: var(--panam-accent); 
+            display: flex; flex-direction: column; align-items: center; justify-content: center; 
+            padding: 1vh 0; border-top: var(--line-width) solid var(--border-gold); 
+            flex-shrink: 0; width: 100%; 
+        }
+
+        #camera-toggle { position: absolute; top: 1.5vh; right: 1vw; z-index: 1000; background-color: var(--panam-blue); color: var(--cadmium-gold); border: 2px solid var(--cadmium-gold); border-radius: 0; padding: 0.5vh 1vw; font-family: var(--font-solari); font-size: 1vw; font-weight: bold; cursor: pointer; text-transform: uppercase; box-shadow: none; transition: all 0.1s ease-in-out; display: flex; align-items: center; gap: 0.5vw; }
+        .slider-row { width: 95%; display: flex; flex-direction: row; align-items: flex-start; margin-bottom: 0.5vh; }
+        .slider-row label { width: 8vw; font-size: 1.1vw; color: var(--cadmium-gold); text-transform: uppercase; flex-shrink: 0; font-weight: bold; margin-top: 0.5vh; line-height: 1.2; }
+        .slider-column { flex: 1; margin: 0 1vw; display: flex; flex-direction: column; align-items: stretch; }
+        .range-wrapper { position: relative; width: 100%; display: flex; align-items: center; height: 4vh; }
+        .activity-wrapper { cursor: grab; }
+        .activity-wrapper:active { cursor: grabbing; }
+
+        .range-wrapper input[type="range"] { -webkit-appearance: none; appearance: none; width: 100%; background: transparent; margin: 0; padding: 0; z-index: 3; position: absolute; height: 4vh; cursor: pointer; }
+        .range-wrapper input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; height: 4vh; width: 2vw; background: transparent; border: none; cursor: pointer; }
+
+        #min-thumb { left: 50% !important; width: var(--line-width); height: 4vh; background: var(--cadmium-gold); border: none; transform: translateX(-50%) translateY(-50%); z-index: 10; pointer-events: none; position: absolute; top: 50%; }
+        #activity-blocks { position: absolute; left: 0; right: 0; height: 4vh; top: 50%; transform: translateY(-50%); background: rgba(255, 255, 255, 0.1); border-radius: 0; border: 1px solid #002244; z-index: 1; overflow: hidden; pointer-events: none; }
+        #activity-blocks::after { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: rgba(0, 34, 68, 0.4); z-index: 2; }
+
+        .range-wrapper::before { content: ''; position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%); height: 6px; background: rgba(255, 255, 255, 0.2); border-radius: 0; border: 1px solid #002244; z-index: 1; }
+        .track-fill { position: absolute; left: 0; top: 50%; transform: translateY(-50%); height: 6px; background: var(--clipper-blue2); border-radius: 0; border: 1px solid #002244; z-index: 2; width: 0%; }
+        .tracker-soccer { absolute; width: 1.5vw; height: 1.5vw; top: 50%; transform: translateY(-50%); pointer-events: none; z-index: 4; left: 0; filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.5)); transition: transform 0.1s linear; }
+
+        .flight-block { position: absolute; display: flex; align-items: center; justify-content: center; font-size: 0.75vw; font-weight: bold; border-left: 1px solid rgba(0, 34, 68, 0.3); border-right: 1px solid rgba(0, 34, 68, 0.3); box-sizing: border-box; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; padding: 0 4px; }
+
+        .tick-container { position: relative; width: 100%; height: 1.5vh; margin-top: 0; }
+        .night-band { position: absolute; top: -0.3vh; bottom: -0.3vh; background-color: var(--panam-blue); border-radius: 0; z-index: 0; opacity: 0.9; pointer-events: none; }
+        .tick-label { position: absolute; color: #fff; font-size: 0.9vw; transform: translateX(-50%); white-space: nowrap; z-index: 1; }
+        .minute-tick { position: absolute; bottom: 0; width: 1px; height: 4px; background-color: rgba(255, 255, 255, 0.3); pointer-events: none; z-index: 1; }
+
+        #dynamic-icon-center { position: absolute; top: 50%; left: 50%; height: 4vh; width: 0; transform: translateY(-50%); pointer-events: none; z-index: 11; }
+
+        /* COUNTDOWN UI */
+        #countdown-container {
+            position: absolute;
+            bottom: 1.5vh;
+            left: 1vw;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5vh;
+            pointer-events: none; 
+        }
+        .countdown-label {
+            color: var(--cadmium-gold);
+            font-size: 0.9vw;
+            font-weight: bold;
+            letter-spacing: 2px;
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.8);
+        }
+        .countdown-board {
+            display: flex;
+            gap: 0.2vw;
+            align-items: center;
+        }
+        .countdown-char {
+            width: 1.5vw;
+            height: 3.5vh;
+            background-color: #111;
+            color: #fff;
+            font-size: 1.4vw;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #000;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.15), 0 1px 2px rgba(0,0,0,0.6);
+            border-radius: 0;
+            perspective: 1000px;
+        }
+        
+        /* THE SOLARIS FLIP ANIMATION */
+        @keyframes flapFlip {
+            0%   { transform: scaleY(1); background-color: #111; }
+            50%  { transform: scaleY(0); background-color: #333; }
+            100% { transform: scaleY(1); background-color: #111; }
+        }
+        .flap-animate {
+            animation: flapFlip 0.3s ease-in-out;
+        }
+
+        .countdown-sep {
+            color: var(--cadmium-gold);
+            font-size: 1.5vw;
+            font-weight: bold;
+            padding: 0 0.1vw;
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.8);
+        }
+        .countdown-unit {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.2vh;
+        }
+        .countdown-unit-label {
+            color: #fff;
+            font-size: 0.6vw;
+            letter-spacing: 1px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+        }
+    </style>
+</head>
+<body>
+<div id="app-container">
+    
+    <div id="left-pane">
+        
+        <div id="top-ops-bar">
+            <div id="header-title" class="header-element"> 
+                <div id="header-title-text">WORLD CUP 2026<br>ITINERARY</div> 
+            </div>
+            <div id="header-local" class="header-element"> 
+                <div id="local-display-hub">
+                    <div id="local-city">LOADING...</div>
+                    <div class="clock-row">
+                        <div class="sub-clock">TYO <span id="clock-tokyo">--:--</span></div>
+                        <div id="local-clock">00:00:00</div>
+                        <div class="sub-clock">BOG <span id="clock-bogota">--:--</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="map-section">
+            <button id="camera-toggle"><span id="camera-icon">🌐</span> <span id="camera-text">GLOBAL VIEW</span></button>
+            <div id="map"></div>
+            
+            <div id="countdown-container">
+                <div class="countdown-label">YUKI DEPARTURE (T-MINUS)</div>
+                <div class="countdown-board" id="yuki-countdown">
+                    <div class="countdown-unit">
+                        <div style="display:flex; gap: 1px;">
+                            <div class="countdown-char" id="cd-d1">-</div>
+                            <div class="countdown-char" id="cd-d2">-</div>
+                        </div>
+                        <div class="countdown-unit-label">DAYS</div>
+                    </div>
+                    <div class="countdown-sep">:</div>
+                    <div class="countdown-unit">
+                        <div style="display:flex; gap: 1px;">
+                            <div class="countdown-char" id="cd-h1">-</div>
+                            <div class="countdown-char" id="cd-h2">-</div>
+                        </div>
+                        <div class="countdown-unit-label">HRS</div>
+                    </div>
+                    <div class="countdown-sep">:</div>
+                    <div class="countdown-unit">
+                        <div style="display:flex; gap: 1px;">
+                            <div class="countdown-char" id="cd-m1">-</div>
+                            <div class="countdown-char" id="cd-m2">-</div>
+                        </div>
+                        <div class="countdown-unit-label">MIN</div>
+                    </div>
+                    <div class="countdown-sep">:</div>
+                    <div class="countdown-unit">
+                        <div style="display:flex; gap: 1px;">
+                            <div class="countdown-char" id="cd-s1">-</div>
+                            <div class="countdown-char" id="cd-s2">-</div>
+                        </div>
+                        <div class="countdown-unit-label">SEC</div>
+                    </div>
+                </div>
+            </div>
+            
+        </div>
+        
+        <div id="control-deck">
+            <div class="slider-row">
+                <label>
+                    TRIP TRACKER<br>
+                    <span id="current-day-display" style="color: #fff; font-size: 1vw;">DAY 1</span>
+                </label>
+                <div class="slider-column">
+                    <div class="range-wrapper">
+                        <div class="track-fill" id="trip-fill"></div>
+                        <input type="range" id="trip-slider" min="0" step="1">
+                        <img src="https://upload.wikimedia.org/wikipedia/commons/d/d3/Soccerball.svg" id="trip-thumb" class="tracker-soccer">
+                    </div>
+                    <div id="trip-ticks-custom" class="tick-container"></div>
+                </div>
+            </div>
+            <div class="slider-row" style="margin-top: 2vh;"><label id="activity-day-label">TIMELINE (±12H)</label>
+                <div class="slider-column">
+                    <div class="range-wrapper activity-wrapper">
+                        <div id="activity-blocks"></div>
+                        <div id="min-thumb"></div>
+                        <div id="dynamic-icon-center"></div>
+                    </div>
+                    <div id="hour-ticks-custom" class="tick-container"></div>
+                </div>
+            </div>
+        </div>
+        
+    </div>
+    
+    <div id="right-sidebar">
+        
+        <div class="passenger-group yuki-group" id="yuki-group-container">
+            <button id="toggle-yuki" class="tgl-btn active">YUKI</button>
+            <div id="header-yuki" class="sidebar-solaris-element">
+                <div class="passenger-header-block">
+                    <div class="airline-logo-box" id="yuki-logo"><img src="" style="display:none;"></div>
+                    <div class="flaps-container"><div id="yuki-loc-board" class="flap-board"></div><div id="yuki-flight-board" class="flap-board"></div></div>
+                    <div class="abstract-icon" style="color: var(--yuki-pink); -webkit-text-stroke: 1pt var(--cadmium-gold);">◆</div> 
+                </div>
+            </div>
+        </div>
+        
+        <div class="passenger-group nico-group" id="nico-group-container">
+            <button id="toggle-nico" class="tgl-btn active">NICO</button>
+            <div id="header-nico" class="sidebar-solaris-element">
+                <div class="passenger-header-block">
+                    <div class="airline-logo-box" id="nico-logo"><img src="" style="display:none;"></div>
+                    <div class="flaps-container"><div id="nico-loc-board" class="flap-board"></div><div id="nico-flight-board" class="flap-board"></div></div>
+                    <div class="abstract-icon" style="color: var(--nico-sky); -webkit-text-stroke: 1pt #000;">▲</div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="day-selector-container">
+            <label for="day-select">JUMP TO:</label>
+            <select id="day-select"></select>
+        </div>
+        
+        <div class="boarding-pass">
+            <div class="bp-header">
+                <span class="bp-airline">FLIGHT LOG</span>
+                <span class="material-symbols-outlined bp-icon">flight_takeoff</span>
+            </div>
+            
+            <div class="bp-section">
+                <div class="bp-label">HOTEL INFO</div>
+                <div id="hotel-display" class="bp-value">NO HOTEL LISTED</div>
+            </div>
+            
+            <div class="bp-section">
+                <div class="bp-label">LOCAL WEATHER</div>
+                <div id="weather-display" class="bp-value">--</div>
+            </div>
+            
+            <div class="bp-section">
+                <div class="bp-label">PASSENGER ACTIVITY</div>
+                <table class="bp-activity-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 20%;">TIME</th>
+                            <th id="th-yuki" style="color:var(--yuki-pink); width: 40%;">YUKI</th>
+                            <th id="th-nico" style="color:var(--nico-sky); width: 40%;">NICO</th>
+                        </tr>
+                    </thead>
+                    <tbody id="bp-activity-tbody">
+                        </tbody>
+                </table>
+            </div>
+            
+            <div class="bp-footer">
+                <div class="barcode"></div>
+                <div class="bp-footer-text">HAVE A SAFE FLIGHT</div>
+            </div>
+        </div>
+        
+    </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script>
+    const DUSK_START = 18; 
+    const NIGHT_START = 19; 
+    const NIGHT_END = 5; 
+    const DAWN_END = 6;
+
+    const NICO_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR7x-1V5Cu4d5ohazJ6Rn7OH-IM2jC0REFpzajz-QsVYdtax2bUzic_WbtqwXSq4NISnsI-G1dinjhz/pub?gid=731298507&single=true&output=csv";
+    const YUKI_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR7x-1V5Cu4d5ohazJ6Rn7OH-IM2jC0REFpzajz-QsVYdtax2bUzic_WbtqwXSq4NISnsI-G1dinjhz/pub?gid=878182940&single=true&output=csv";
+    const FIXED_PLANE_SZ = 32, FIXED_TRANS_SZ = 41, FIXED_BOY_SZ = 32;   
+    
+    let nicoData = [], yukiData = [];
+    let masterStartTime = 0; 
+    let isZoomedIn = true, currentFocusKey = null, fullMapBounds = null, boardStates = {}, skipCameraNextRender = false;
+    let showNico = true, showYuki = true;
+
+    const rootStyles = getComputedStyle(document.documentElement);
+    const colorNico = rootStyles.getPropertyValue('--nico-sky').trim();
+    const colorYuki = rootStyles.getPropertyValue('--yuki-pink').trim();
+    const bgLineOpacity = parseFloat(rootStyles.getPropertyValue('--bg-line-opacity')) || 0.6;
+
+    const map = L.map('map', { 
+        worldCopyJump: true,
+        fadeAnimation: false,
+        zoomAnimation: true,
+        markerZoomAnimation: false
+    }).setView([35.6762, 139.6503], 4);
+    
+    let dayTiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png', { 
+        keepBuffer: 8, updateWhenZooming: false, updateWhenIdle: true, className: 'day-tiles' 
+    }).addTo(map);
+    
+    let nightTiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png', { 
+        keepBuffer: 8, updateWhenZooming: false, updateWhenIdle: true, className: 'night-tiles', opacity: 0 
+    }).addTo(map);
+
+    map.on('zoomend', function() {
+        if (map.getZoom() < 5) map.getContainer().classList.add('hide-city-labels');
+        else map.getContainer().classList.remove('hide-city-labels');
+    });
+
+    let cityMarkersLayer = L.layerGroup().addTo(map), backgroundLinesLayer = L.layerGroup().addTo(map);
+    let nicoMarker = L.marker([0,0]).addTo(map), yukiMarker = L.marker([0,0]).addTo(map);
+    let nicoTrajectory = L.polyline([], {color: colorNico, weight: 4, opacity: 0.9, className: 'radar-sweep-line'}).addTo(map);
+    let yukiTrajectory = L.polyline([], {color: colorYuki, weight: 4, opacity: 0.9, className: 'radar-sweep-line'}).addTo(map);
+
+    const tzLookup = { 'TOKYO': 'Asia/Tokyo', 'NARITA': 'Asia/Tokyo', 'BOGOTA': 'America/Bogota', 'MEXICO CITY': 'America/Mexico_City', 'MIAMI': 'America/New_York', 'DALLAS': 'America/Chicago', 'SAN MARCOS': 'America/Chicago', 'AUSTIN': 'America/Chicago', 'SAN ANTONIO': 'America/Chicago', 'MONTERREY': 'America/Monterrey', 'BOSTON': 'America/New_York', 'HOUSTON': 'America/Chicago', 'LOS ANGELES': 'America/Los_Angeles', 'LAX': 'America/Los_Angeles', 'AT&T STADIUM': 'America/Chicago', 'ESTADIO BBVA': 'America/Monterrey', 'NRG STADIUM': 'America/Chicago' };
+    const logoMap = { 'SQ': 'https://1000logos.net/wp-content/uploads/2020/04/Singapore-Airlines-Logo-1972.jpg', 'AA': 'https://upload.wikimedia.org/wikipedia/commons/2/26/American_Airlines_1967_%28Unused%29_logo.png', 'VB': 'https://upload.wikimedia.org/wikipedia/commons/6/6e/VivaAerobus_logo.png', 'AM': 'https://1000logos.net/wp-content/uploads/2023/05/Aeromexico-Logo-1972.png', 'WN': 'https://1000logos.net/wp-content/uploads/2019/08/Southwest-Logo-1989-2001.png' };
+    const weatherMock = { 'TOKYO': '☀️ 22°C CLEAR', 'NARITA': '☀️ 22°C CLEAR', 'BOGOTA': '🌧️ 16°C RAIN', 'MEXICO CITY': '⛅ 24°C PARTLY CLOUDY', 'MIAMI': '☀️ 28°C SUNNY', 'DALLAS': '☀️ 30°C HOT', 'SAN MARCOS': '☀️ 31°C HOT', 'AUSTIN': '☀️ 31°C HOT', 'SAN ANTONIO': '☀️ 32°C HOT', 'MONTERREY': '☀️ 30°C CLEAR', 'BOSTON': '🌧️ 15°C SHOWERS', 'HOUSTON': '⛅ 29°C HUMID', 'LOS ANGELES': '☀️ 25°C SUNNY', 'LAX': '☀️ 25°C SUNNY' };
+
+    // DST-Safe High Performance Cache (Keyed by Tz + Absolute Day)
+    const tzCache = {};
+    const fastGetTz = (n, tz) => {
+        const d = new Date(n);
+        const cacheKey = `${tz}_${d.getUTCFullYear()}_${d.getUTCMonth()}_${d.getUTCDate()}`;
+        if (tzCache[cacheKey] !== undefined) return tzCache[cacheKey]; 
+        
+        const s = d.toLocaleString('en-US',{timeZone:tz,hour12:false}); 
+        const u = d.toLocaleString('en-US',{timeZone:'UTC',hour12:false}); 
+        let off = Math.round((new Date(s+" UTC")-new Date(u+" UTC"))/60000); 
+        tzCache[cacheKey] = off;
+        return off;
+    };
+
+    function getPlaneSVG(size, color) { return `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="${color}" stroke="#002244" stroke-width="1.5"><path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"/></svg>`; }
+    function getCarSVG(size, color) { return `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="${color}" stroke="#002244" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="4" height="5" rx="2" fill="#002244"/><rect x="17" y="5" width="4" height="5" rx="2" fill="#002244"/><rect x="3" y="14" width="4" height="5" rx="2" fill="#002244"/><rect x="17" y="14" width="4" height="5" rx="2" fill="#002244"/><rect x="5" y="2" width="14" height="20" rx="7" fill="${color}"/><path d="M7 8 Q12 5 17 8 L16 11 L8 11 Z" fill="#aadaff" stroke="#002244"/><path d="M8 17 Q12 19 16 17 L15 15 L9 15 Z" fill="#aadaff" stroke="#002244"/></svg>`; }
+    function getNicoIcon(size) { return `<div style="color: ${colorNico}; font-size: ${size}px; font-weight: bold; -webkit-text-stroke: 1pt #000; line-height: 1;">▲</div>`; }
+    function getYukiIcon(size) { return `<div style="color: ${colorYuki}; font-size: ${size}px; font-weight: bold; -webkit-text-stroke: 1pt #000; line-height: 1;">◆</div>`; }
+
+    function isAirTravel(f) { if (!f) return false; let s = f.trim().toUpperCase(); return s !== "" && s !== "NONE" && s !== "NO FLIGHT" && s !== "-" && s !== "TRANSIT" && s !== "ROADTRIP"; }
+    function isRoadTrip(f) { if (!f) return false; return f.trim().toUpperCase() === "ROADTRIP"; }
+    function isMoving(f) { return isAirTravel(f) || isRoadTrip(f); }
+
+    function getGreatCirclePoint(lat1, lng1, lat2, lng2, f) {
+        const toRad = Math.PI / 180, toDeg = 180 / Math.PI;
+        const p1 = lat1 * toRad, l1 = lng1 * toRad, p2 = lat2 * toRad, l2 = lng2 * toRad;
+        const d = 2 * Math.asin(Math.sqrt(Math.pow(Math.sin((p2 - p1) / 2), 2) + Math.cos(p1) * Math.cos(p2) * Math.pow(Math.sin((l2 - l1) / 2), 2)));
+        if (d === 0 || isNaN(d)) return [lat1, lng1];
+        const A = Math.sin((1 - f) * d) / Math.sin(d), B = Math.sin(f * d) / Math.sin(d);
+        const x = A * Math.cos(p1) * Math.cos(l1) + B * Math.cos(p2) * Math.cos(l2);
+        const y = A * Math.cos(p1) * Math.sin(l1) + B * Math.cos(p2) * Math.sin(l2);
+        const z = A * Math.sin(p1) + B * Math.sin(p2);
+        let fLng = Math.atan2(y, x) * toDeg;
+        while (fLng - lng1 > 180) fLng -= 360; while (lng1 - fLng > 180) fLng += 360;
+        return [Math.atan2(z, Math.sqrt(x * x + y * y)) * toDeg, fLng];
+    }
+
+    function smartParseDate(dateStr, timeStr) {
+        if (!dateStr || !timeStr) return 0;
+        let dParts = dateStr.split(/[-/]/), tParts = timeStr.split(':'), year = 2026, month = 1, day = 1;
+        if (dParts[0].length === 4) { year = parseInt(dParts[0]); month = parseInt(dParts[1]); day = parseInt(dParts[2]); } 
+        else { year = parseInt(dParts[2]); let p1 = parseInt(dParts[0]), p2 = parseInt(dParts[1]); if (p1 > 12) { day = p1; month = p2; } else { month = p1; day = p2; } }
+        return Date.UTC(year, month - 1, day, parseInt(tParts[0]), parseInt(tParts[1]), 0);
+    }
+
+    function processRows(rawData) {
+        let prevTs = 0, prevLng = null;
+        return rawData.filter(r => r.Date && r.Time).map((row, i) => {
+            let ts = smartParseDate(row.Date.trim(), row.Time.trim());
+            let lookupTz = tzLookup[row.Location.replace(/\s*\(.*\)/, '').trim().toUpperCase()] || 'UTC';
+            
+            if (i > 0 && ts < prevTs) { ts += 86400000; }
+            prevTs = ts;
+            
+            let lat = parseFloat(row.Lat), lng = parseFloat(row.Lng);
+            if (prevLng !== null) { while (lng - prevLng > 180) lng -= 360; while (prevLng - lng > 180) lng += 360; }
+            prevLng = lng;
+            
+            return { ...row, timestamp: ts, Lat: lat, Lng: lng, tz: lookupTz };
+        });
+    }
+
+    function loadData() {
+        Promise.all([
+            new Promise(resolve => Papa.parse(NICO_URL, { download: true, header: true, skipEmptyLines: true, complete: r => resolve(r.data) })),
+            new Promise(resolve => Papa.parse(YUKI_URL, { download: true, header: true, skipEmptyLines: true, complete: r => resolve(r.data) }))
+        ]).then(([nicoRaw, yukiRaw]) => {
+            nicoData = processRows(nicoRaw); yukiData = processRows(yukiRaw);
+            let allData = [...nicoData, ...yukiData];
+            cityMarkersLayer.clearLayers(); backgroundLinesLayer.clearLayers();
+            let seen = new Set();
+            allData.forEach(row => {
+                let key = `${row.Lat},${row.Lng}`;
+                if (!seen.has(key)) { seen.add(key); L.circleMarker([row.Lat, row.Lng], { radius: 5, color: '#002244', weight: 2, fillColor: '#FFCC00', fillOpacity: 1 }).bindTooltip(row.Location.replace(/\s*\(.*\)/, ''), { permanent: true, direction: 'top', offset: [0, -10], className: 'country-label' }).addTo(cityMarkersLayer); }
+            });
+            [{ data: nicoData, color: colorNico }, { data: yukiData, color: colorYuki }].forEach(({ data, color }) => {
+                data.forEach((row, i) => { if (i < data.length - 1 && isMoving(row.Flight)) { let next = data[i + 1]; if (row.Lat !== next.Lat || row.Lng !== next.Lng) { let pts = []; for (let j = 0; j <= 50; j++) pts.push(getGreatCirclePoint(row.Lat, row.Lng, next.Lat, next.Lng, j / 50)); L.polyline(pts, { color, weight: 2, opacity: bgLineOpacity }).addTo(backgroundLinesLayer); } } });
+            });
+            fullMapBounds = L.latLngBounds(allData.map(d => [d.Lat, d.Lng]));
+            if (nicoData.length > 0) initSync();
+        });
+    }
+
+    function animateFlaps(id, text) {
+        text = (text || "").toUpperCase().padEnd(11, " ").substring(0, 11);
+        if (boardStates[id] === text) return; boardStates[id] = text;
+        const b = document.getElementById(id); if (!b) return;
+        if (!b.children.length) { for(let i=0; i<11; i++) { let d = document.createElement('div'); d.className = 'flap-char'; b.appendChild(d); } }
+        let t = 0; const intrvl = setInterval(() => { t++; for (let i = 0; i < 11; i++) { b.children[i].innerText = t < 8 ? "X7R2P9"[Math.floor(Math.random()*6)] : text[i]; } if (t >= 8) clearInterval(intrvl); }, 40);
+    }
+
+    function getPersonState(data, now) {
+        if (!data.length) return null;
+        if (now < data[0].timestamp) return { curr: data[0], next: data[0], prog: 0, lat: data[0].Lat, lng: data[0].Lng, isTransit: false, isCar: false, isAir: false, bearing: 0 };
+        let idx = 0;
+        for (let i = 0; i < data.length - 1; i++) { if (now >= data[i].timestamp && now < data[i + 1].timestamp) { idx = i; break; } }
+        if (now >= data[data.length - 1].timestamp) idx = data.length - 1;
+        let curr = data[idx], next = data[idx + 1] || curr, prog = (next !== curr && now > curr.timestamp) ? (now - curr.timestamp) / (next.timestamp - curr.timestamp) : 0;
+        let fStr = (curr.Flight || "").trim().toUpperCase(), isCar = isRoadTrip(fStr), isAir = isAirTravel(fStr);
+        let isTransit = (isAir || isCar) && next !== curr && (curr.Lat !== next.Lat || curr.Lng !== next.Lng);
+        let lat = curr.Lat, lng = curr.Lng, bearing = 0;
+        if (isTransit) {
+            let pos = getGreatCirclePoint(curr.Lat, curr.Lng, next.Lat, next.Lng, prog); lat = pos[0]; lng = pos[1];
+            let nStep = getGreatCirclePoint(curr.Lat, curr.Lng, next.Lat, next.Lng, Math.min(1.0, prog + 0.001));
+            let p1 = map.project([lat, lng], 10), p2 = map.project([nStep[0], nStep[1]], 10);
+            bearing = (Math.atan2(p2.y - p1.y, p2.x - p1.x) * 180 / Math.PI) + 90;
+        }
+        return { curr, next, prog, isTransit, isCar, isAir, lat, lng, bearing };
+    }
+
+    function stateIcon(person, state, forTimeline = false) {
+        let size = state.isTransit ? (state.isCar ? FIXED_TRANS_SZ : FIXED_PLANE_SZ) : FIXED_BOY_SZ;
+        if (forTimeline) size *= 0.7;
+        let color = person === 'Nico' ? colorNico : colorYuki;
+        let svg = state.isTransit ? (state.isCar ? getCarSVG(size, color) : getPlaneSVG(size, color)) : (person === 'Nico' ? getNicoIcon(size) : getYukiIcon(size));
+        let rot = (state.isTransit && !forTimeline) ? state.bearing : (state.isTransit ? 90 : 0);
+        return `<div style="transform: rotate(${rot}deg); width: ${size}px; height: ${size}px; display:flex; justify-content:center; align-items:center;">${svg}</div>`;
+    }
+
+    function render(now) {
+        const nowMin = Math.floor(now / 60000) * 60000;
+        let nState = getPersonState(nicoData, nowMin), yState = getPersonState(yukiData, nowMin);
+        if (!nState || !yState) return;
+
+        // Top UI reflects visibility logic
+        document.getElementById('nico-group-container').style.opacity = showNico ? '1' : '0.4';
+        document.getElementById('yuki-group-container').style.opacity = showYuki ? '1' : '0.4';
+        document.getElementById('th-yuki').style.display = showYuki ? '' : 'none';
+        document.getElementById('th-nico').style.display = showNico ? '' : 'none';
+
+        // Select Primary Active State
+        let primaryState = showNico ? nState : yState;
+        
+        let offset = primaryState.isTransit ? (fastGetTz(nowMin, primaryState.curr.tz) + (fastGetTz(nowMin, primaryState.next.tz) - fastGetTz(nowMin, primaryState.curr.tz)) * primaryState.prog) : fastGetTz(nowMin, primaryState.curr.tz);
+        const localD = new Date(nowMin + (offset * 60000));
+        
+        const localHours = localD.getUTCHours() + (localD.getUTCMinutes() / 60);
+        let nightFactor = 0;
+        if (localHours >= NIGHT_START || localHours <= NIGHT_END) nightFactor = 1;
+        else if (localHours > DUSK_START && localHours < NIGHT_START) nightFactor = localHours - DUSK_START;
+        else if (localHours > NIGHT_END && localHours < DAWN_END) nightFactor = 1 - (localHours - NIGHT_END);
+        
+        document.documentElement.style.setProperty('--night-factor', (nightFactor * 100) + '%');
+        nightTiles.setOpacity(nightFactor);
+
+        let dCity = (primaryState.prog >= 0.5 && primaryState.next) ? primaryState.next.Location : primaryState.curr.Location;
+        dCity = dCity.replace(/\s*\(.*\)/, '');
+        
+        document.getElementById('local-city').innerText = `${dCity}, ${localD.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' }).toUpperCase()}`;
+        document.getElementById('local-clock').innerText = localD.toLocaleTimeString('en-GB',{timeZone:'UTC',hour12:false});
+        
+        const dUtc = new Date(nowMin);
+        document.getElementById('clock-tokyo').innerText = dUtc.toLocaleTimeString('en-GB', {timeZone: 'Asia/Tokyo', hour:'2-digit', minute:'2-digit'});
+        document.getElementById('clock-bogota').innerText = dUtc.toLocaleTimeString('en-GB', {timeZone: 'America/Bogota', hour:'2-digit', minute:'2-digit'});
+
+        animateFlaps('nico-loc-board', nState.isTransit ? nState.next.Location : nState.curr.Location);
+        animateFlaps('nico-flight-board', nState.curr.Flight);
+        animateFlaps('yuki-loc-board', yState.isTransit ? yState.next.Location : yState.curr.Location);
+        animateFlaps('yuki-flight-board', yState.curr.Flight);
+        
+        let hotel = null;
+        if (showNico && showYuki) {
+            hotel = [nState.curr.Hotel, yState.curr.Hotel].find(h => h && h.trim() !== '-' && h.trim() !== '');
+        } else {
+            hotel = primaryState.curr.Hotel;
+        }
+        document.getElementById('hotel-display').innerText = hotel || "NOT SPECIFIED";
+        document.getElementById('weather-display').innerText = weatherMock[dCity.toUpperCase()] || '⛅ 20°C MILD';
+        
+        let activeIdx = 0;
+        let relativeMin = Math.floor((nowMin - masterStartTime) / 60000);
+        if (window.dayJumpPoints) {
+            for (let i = 0; i < window.dayJumpPoints.length; i++) {
+                if (relativeMin >= window.dayJumpPoints[i].min) {
+                    activeIdx = i;
+                }
+            }
+            
+            let currentDayDisplay = document.getElementById('current-day-display');
+            if (currentDayDisplay) currentDayDisplay.innerText = `DAY ${activeIdx + 1}`;
+        }
+        
+        const tbody = document.getElementById('bp-activity-tbody');
+        tbody.innerHTML = '';
+        
+        if (window.dayJumpPoints && window.dayJumpPoints[activeIdx]) {
+            let activeLocalMidnight = window.dayJumpPoints[activeIdx].localMs; 
+            let dayTimestamps = new Set();
+            const getAct = (row) => row && row.Activity && row.Activity.trim() !== '-' ? row.Activity.trim() : null;
+
+            if (showNico) {
+                nicoData.forEach(r => { 
+                    let rLocal = r.timestamp + fastGetTz(r.timestamp, r.tz) * 60000;
+                    if(rLocal >= activeLocalMidnight && rLocal < activeLocalMidnight + 86400000 && getAct(r)) dayTimestamps.add(r.timestamp); 
+                });
+            }
+            if (showYuki) {
+                yukiData.forEach(r => { 
+                    let rLocal = r.timestamp + fastGetTz(r.timestamp, r.tz) * 60000;
+                    if(rLocal >= activeLocalMidnight && rLocal < activeLocalMidnight + 86400000 && getAct(r)) dayTimestamps.add(r.timestamp); 
+                });
+            }
+            
+            let sortedTs = Array.from(dayTimestamps).sort((a,b)=>a-b);
+            
+            if (sortedTs.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="${showNico && showYuki ? 3 : 2}" style="text-align:center; color:#887a65; font-size:1vw; padding:1vh 0;">NO SCHEDULED ACTIVITY</td></tr>`;
+            } else {
+                sortedTs.forEach(ts => {
+                    let nRow = nicoData.find(r => r.timestamp === ts && getAct(r));
+                    let yRow = yukiData.find(r => r.timestamp === ts && getAct(r));
+                    
+                    let nAct = nRow ? getAct(nRow) : null;
+                    let yAct = yRow ? getAct(yRow) : null;
+                    
+                    let evTz = (nRow ? nRow.tz : null) || (yRow ? yRow.tz : null) || 'UTC';
+                    let evLocalEpoch = ts + fastGetTz(ts, evTz) * 60000;
+                    let evTime = new Date(evLocalEpoch).toLocaleTimeString('en-US', {hour: '2-digit', minute:'2-digit', hour12: false, timeZone: 'UTC'});
+                    
+                    let tr = document.createElement('tr');
+                    let tdTime = document.createElement('td');
+                    tdTime.innerText = evTime;
+                    tr.appendChild(tdTime);
+                    
+                    if (nAct && nAct === yAct && showNico && showYuki) {
+                        let tdMerged = document.createElement('td');
+                        tdMerged.colSpan = 2; tdMerged.innerText = nAct; tdMerged.style.textAlign = 'center';
+                        tr.appendChild(tdMerged);
+                    } else {
+                        if (showYuki) {
+                            let tdYuki = document.createElement('td'); tdYuki.innerText = yAct || '--';
+                            tr.appendChild(tdYuki);
+                        }
+                        if (showNico) {
+                            let tdNico = document.createElement('td'); tdNico.innerText = nAct || '--';
+                            tr.appendChild(tdNico);
+                        }
+                    }
+                    tbody.appendChild(tr);
+                });
+            }
+        }
+        
+        ['yuki', 'nico'].forEach(p => {
+            const f = (p === 'yuki' ? yState : nState).curr.Flight;
+            const img = document.getElementById(`${p}-logo`).querySelector('img');
+            let matchedLogo = ""; if (f) { for (const code in logoMap) { if (f.includes(code)) { matchedLogo = logoMap[code]; break; } } }
+            img.src = matchedLogo || ""; img.style.display = matchedLogo ? 'block' : 'none';
+            img.parentElement.style.backgroundColor = matchedLogo ? '#fff' : '#111';
+            img.className = (f && f.includes("SQ")) ? 'sq-scale' : '';
+        });
+
+        if (showNico) {
+            if (!map.hasLayer(nicoMarker)) nicoMarker.addTo(map);
+            if (!map.hasLayer(nicoTrajectory)) nicoTrajectory.addTo(map);
+        } else {
+            if (map.hasLayer(nicoMarker)) map.removeLayer(nicoMarker);
+            if (map.hasLayer(nicoTrajectory)) map.removeLayer(nicoTrajectory);
+        }
+        
+        if (showYuki) {
+            if (!map.hasLayer(yukiMarker)) yukiMarker.addTo(map);
+            if (!map.hasLayer(yukiTrajectory)) yukiTrajectory.addTo(map);
+        } else {
+            if (map.hasLayer(yukiMarker)) map.removeLayer(yukiMarker);
+            if (map.hasLayer(yukiTrajectory)) map.removeLayer(yukiTrajectory);
+        }
+
+        let nLat = nState.lat, nLng = nState.lng, yLat = yState.lat, yLng = yState.lng;
+        if (Math.abs(nLat - yLat) < 0.001 && Math.abs(nLng - yLng) < 0.001) { nLng -= 0.012; yLng += 0.012; }
+
+        nicoMarker.setLatLng([nLat, nLng]).setIcon(L.divIcon({ html: stateIcon('Nico', nState), iconSize: [40, 40], iconAnchor: [20, 20] }));
+        yukiMarker.setLatLng([yLat, yLng]).setIcon(L.divIcon({ html: stateIcon('Yuki', yState), iconSize: [40, 40], iconAnchor: [20, 20] }));
+        
+        [ {s: nState, t: nicoTrajectory}, {s: yState, t: yukiTrajectory} ].forEach(cfg => {
+            if (cfg.s.isTransit) {
+                let pts = []; for (let j = 0; j <= 50; j++) pts.push(getGreatCirclePoint(cfg.s.curr.Lat, cfg.s.curr.Lng, cfg.s.next.Lat, cfg.s.next.Lng, j / 50));
+                cfg.t.setLatLngs(pts);
+            } else cfg.t.setLatLngs([]);
+        });
+
+        if (!skipCameraNextRender) {
+            if (isZoomedIn) {
+                let boundsPoints = [];
+                if (showNico && nState) {
+                    boundsPoints.push([nLat, nLng]);
+                    if (nState.isTransit) boundsPoints.push([nState.next.Lat, nState.next.Lng]);
+                }
+                if (showYuki && yState) {
+                    boundsPoints.push([yLat, yLng]);
+                    if (yState.isTransit) boundsPoints.push([yState.next.Lat, yState.next.Lng]);
+                }
+                if (boundsPoints.length > 0) {
+                    let b = L.latLngBounds(boundsPoints);
+                    let phaseKey = b.toBBoxString().split(',').map(v => parseFloat(v).toFixed(1)).join(',');
+                    if (currentFocusKey !== phaseKey) { currentFocusKey = phaseKey; map.fitBounds(b, { padding: [120, 120], maxZoom: 11, animate: false }); }
+                }
+            } else if (currentFocusKey !== "GLOBAL") { currentFocusKey = "GLOBAL"; if (fullMapBounds) map.fitBounds(fullMapBounds, { padding: [30, 30], animate: false }); }
+        }
+        skipCameraNextRender = false;
+
+        const blocks = document.getElementById('activity-blocks'); blocks.innerHTML = '';
+        const winStart = nowMin - (12 * 3600000), winEnd = nowMin + (12 * 3600000), winDur = winEnd - winStart; 
+        
+        [{ data: nicoData, y: '50%', show: showNico }, { data: yukiData, y: '0%', show: showYuki }].forEach(({ data, y, show }) => {
+            if (!show) return;
+            data.forEach((row, i) => {
+                if (i < data.length - 1) {
+                    let s = row.timestamp, e = data[i + 1].timestamp;
+                    if (e <= winStart || s >= winEnd) return;
+                    let blk = document.createElement('div'); blk.className = 'flight-block';
+                    blk.style.left = ((Math.max(s, winStart) - winStart) / winDur * 100) + '%';
+                    blk.style.width = ((Math.min(e, winEnd) - Math.max(s, winStart)) / winDur * 100) + '%';
+                    blk.style.top = y; blk.style.height = '50%';
+                    const f = (row.Flight || "").toUpperCase();
+                    if (isMoving(f)) { blk.style.backgroundColor = isRoadTrip(f) ? 'var(--cadmium-gold)' : 'var(--clipper-blue2)'; blk.style.color = isRoadTrip(f) ? 'var(--panam-blue)' : '#fff'; blk.innerText = row.Flight; }
+                    else { blk.style.backgroundColor = '#ffffff'; blk.style.color = 'var(--panam-blue)'; blk.innerText = (row.Activity && row.Activity.trim() !== '-') ? row.Activity : ""; }
+                    blocks.appendChild(blk);
+                }
+            });
+        });
+
+        let dynHtml = '';
+        if (showYuki) dynHtml += `<div style="position: absolute; top: 25%; transform: translate(-50%, -50%);">${stateIcon('Yuki', yState, true)}</div>`;
+        if (showNico) dynHtml += `<div style="position: absolute; top: 75%; transform: translate(-50%, -50%);">${stateIcon('Nico', nState, true)}</div>`;
+        document.getElementById('dynamic-icon-center').innerHTML = dynHtml;
+        
+        const hourTicks = document.getElementById('hour-ticks-custom'); hourTicks.innerHTML = '';
+        
+        let localWinStart = winStart + (offset * 60000);
+        let localWinEnd = winEnd + (offset * 60000);
+        let startOfDay = Math.floor(localWinStart / 86400000) * 86400000;
+        
+        for (let day = -1; day <= 2; day++) {
+            let nStart = startOfDay + (day * 86400000) + (DUSK_START * 3600000); 
+            let nEnd = startOfDay + (day * 86400000) + ((24 + DAWN_END) * 3600000); 
+            
+            let rStart = Math.max(nStart, localWinStart);
+            let rEnd = Math.min(nEnd, localWinEnd);
+            
+            if (rStart < rEnd) {
+                let pctLeft = ((rStart - localWinStart) / winDur) * 100;
+                let pctWidth = ((rEnd - rStart) / winDur) * 100;
+                let nb = document.createElement('div');
+                nb.className = 'night-band';
+                nb.style.left = pctLeft + '%';
+                nb.style.width = pctWidth + '%';
+                hourTicks.appendChild(nb);
+            }
+        }
+
+        let firstHourTs = Math.ceil(localWinStart / 3600000) * 3600000;
+        for (let t = firstHourTs; t <= localWinEnd; t += 3600000) {
+            let pct = ((t - localWinStart) / winDur) * 100;
+            let localH = new Date(t).getUTCHours();
+            
+            let label = document.createElement('div'); 
+            label.className = 'tick-label'; 
+            label.style.left = pct + '%'; 
+            label.innerText = localH + 'H';
+            
+            let line = document.createElement('div'); 
+            line.className = 'minute-tick'; 
+            line.style.left = pct + '%'; 
+            line.style.height = '8px';
+            
+            hourTicks.append(label, line);
+        }
+
+        const daySelect = document.getElementById('day-select');
+        if (daySelect && window.dayJumpPoints) {
+            let activeMin = window.dayJumpPoints[activeIdx].min;
+            if (daySelect.value !== String(activeMin)) {
+                daySelect.value = activeMin;
+            }
+        }
+    }
+
+    function syncSliderUI(sId, tId, fId) {
+        const s = document.getElementById(sId), t = document.getElementById(tId), f = document.getElementById(fId);
+        let p = (s.value - s.min) / (s.max - s.min);
+        t.style.left = `calc(${p} * (100% - 1.5vw))`;
+        if (f) f.style.width = `calc(${p} * (100% - 1.5vw) + 0.75vw)`;
+    }
+
+    function updateToggleUI() {
+        document.getElementById('toggle-yuki').className = showYuki ? 'tgl-btn active' : 'tgl-btn';
+        document.getElementById('toggle-nico').className = showNico ? 'tgl-btn active' : 'tgl-btn';
+        const ts = document.getElementById('trip-slider');
+        if (nicoData.length > 0) render(masterStartTime + (parseInt(ts.value) * 60000));
+    }
+
+    function initSync() {
+        // Toggle Handlers
+        document.getElementById('toggle-yuki').onclick = () => {
+            if (showYuki && !showNico) { showYuki = false; showNico = true; }
+            else { showYuki = !showYuki; }
+            updateToggleUI();
+        };
+        document.getElementById('toggle-nico').onclick = () => {
+            if (showNico && !showYuki) { showNico = false; showYuki = true; }
+            else { showNico = !showNico; }
+            updateToggleUI();
+        };
+
+        let firstEventTime = Math.min(nicoData[0].timestamp, yukiData[0].timestamp);
+        let startTz = nicoData[0].timestamp <= yukiData[0].timestamp ? nicoData[0].tz : yukiData[0].tz;
+        
+        let startOff = fastGetTz(firstEventTime, startTz);
+        let localFirstEventTime = firstEventTime + (startOff * 60000);
+        let localMidnight = Math.floor(localFirstEventTime / 86400000) * 86400000;
+        
+        masterStartTime = localMidnight - (startOff * 60000); 
+        
+        let lastEventTime = Math.max(nicoData[nicoData.length - 1].timestamp, yukiData[yukiData.length - 1].timestamp);
+        let endTz = nicoData[nicoData.length - 1].timestamp >= yukiData[yukiData.length - 1].timestamp ? nicoData[nicoData.length - 1].tz : yukiData[yukiData.length - 1].tz;
+        let endOffset = fastGetTz(lastEventTime, endTz);
+        let localLastEventTime = lastEventTime + (endOffset * 60000);
+        let localEndMidnight = Math.ceil(localLastEventTime / 86400000) * 86400000;
+        const tripEndTime = localEndMidnight - (endOffset * 60000);
+
+        const ts = document.getElementById('trip-slider');
+        ts.max = Math.floor((tripEndTime - masterStartTime) / 60000);
+        
+        window.dayJumpPoints = [];
+        let maxDayIdx = -Infinity;
+        
+        for (let m = 0; m <= ts.max; m += 60) { 
+            let t = masterStartTime + m * 60000;
+            let nState = getPersonState(nicoData, t);
+            if (!nState) continue;
+            
+            let offset = nState.isTransit ? (fastGetTz(t, nState.curr.tz) + (fastGetTz(t, nState.next.tz) - fastGetTz(t, nState.curr.tz)) * nState.prog) : fastGetTz(t, nState.curr.tz);
+            let localD = t + offset * 60000;
+            let dayIdx = Math.floor(localD / 86400000);
+            
+            if (dayIdx > maxDayIdx) {
+                let exactM = m;
+                if (m > 0) {
+                    for (let back = 1; back <= 60; back++) {
+                        if (m - back < 0) break;
+                        let bt = masterStartTime + (m - back) * 60000;
+                        let bState = getPersonState(nicoData, bt);
+                        if (!bState) continue;
+                        let bOff = bState.isTransit ? (fastGetTz(bt, bState.curr.tz) + (fastGetTz(bt, bState.next.tz) - fastGetTz(bt, bState.curr.tz)) * bState.prog) : fastGetTz(bt, bState.curr.tz);
+                        let bLocalD = bt + bOff * 60000;
+                        if (Math.floor(bLocalD / 86400000) < dayIdx) {
+                            exactM = m - back + 1;
+                            break;
+                        }
+                    }
+                }
+                
+                if (maxDayIdx === -Infinity || exactM !== window.dayJumpPoints[window.dayJumpPoints.length - 1]?.min) {
+                    window.dayJumpPoints.push({ min: exactM, localMs: dayIdx * 86400000 });
+                    maxDayIdx = dayIdx;
+                }
+            }
+        }
+
+        const tripTicks = document.getElementById('trip-ticks-custom');
+        const daySelect = document.getElementById('day-select');
+        
+        tripTicks.innerHTML = ''; 
+        if(daySelect) daySelect.innerHTML = '';
+        
+        window.dayJumpPoints.forEach((dp, i) => {
+            let dStr = new Date(dp.localMs).toLocaleDateString('en-US', {month: 'short', day: 'numeric', timeZone: 'UTC'});
+            
+            let tick = document.createElement('div'); tick.className = 'tick-label';
+            let p = dp.min / ts.max;
+            tick.style.left = `calc(${p} * (100% - 1.5vw) + 0.75vw)`; 
+            tick.innerText = `${i+1}`; 
+            tripTicks.appendChild(tick);
+            
+            if (daySelect) {
+                let opt = document.createElement('option');
+                opt.value = dp.min;
+                opt.innerText = `DAY ${i+1} (${dStr})`;
+                daySelect.appendChild(opt);
+            }
+        });
+
+        if (daySelect) {
+            daySelect.addEventListener('change', (e) => {
+                let targetMin = parseInt(e.target.value);
+                if (targetMin > ts.max) targetMin = ts.max;
+                ts.value = targetMin;
+                syncSliderUI('trip-slider', 'trip-thumb', 'trip-fill');
+                render(masterStartTime + (targetMin * 60000));
+            });
+        }
+
+        ts.value = Math.max(0, Math.min(ts.max, Math.floor((Date.now() - masterStartTime) / 60000)));
+        ts.oninput = () => { syncSliderUI('trip-slider', 'trip-thumb', 'trip-fill'); render(masterStartTime + (parseInt(ts.value) * 60000)); };
+        syncSliderUI('trip-slider', 'trip-thumb', 'trip-fill'); render(masterStartTime + (parseInt(ts.value) * 60000));
+
+        const actBar = document.querySelector('.activity-wrapper');
+        let isDragging = false, dragStartX = 0, dragStartTsValue = 0, lastClientX = 0, edgeScrollRAF = null;
+        function onDragStart(e) { isDragging = true; dragStartX = e.touches ? e.touches[0].clientX : e.clientX; lastClientX = dragStartX; dragStartTsValue = parseInt(ts.value); if(!e.touches) e.preventDefault(); }
+        function onDragMove(e) {
+            if (!isDragging) return;
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX; lastClientX = clientX;
+            const dx = clientX - dragStartX; const barRect = actBar.getBoundingClientRect();
+            const deltaMinutes = Math.round((dx / barRect.width) * 1440);
+            let newVal = Math.max(0, Math.min(parseInt(ts.max), dragStartTsValue + deltaMinutes));
+            ts.value = newVal; syncSliderUI('trip-slider', 'trip-thumb', 'trip-fill'); render(masterStartTime + (newVal * 60000));
+            const relX = (clientX - barRect.left) / barRect.width;
+            if (relX < 0.1) startEdgeScroll(-8); else if (relX > 0.9) startEdgeScroll(8); else stopEdgeScroll();
+        }
+        function startEdgeScroll(speed) {
+            if (edgeScrollRAF) return; 
+            function tick() {
+                let val = Math.max(0, Math.min(parseInt(ts.max), parseInt(ts.value) + speed));
+                ts.value = val; dragStartTsValue = val; dragStartX = lastClientX;
+                syncSliderUI('trip-slider', 'trip-thumb', 'trip-fill'); render(masterStartTime + (val * 60000));
+                edgeScrollRAF = requestAnimationFrame(tick);
+            }
+            edgeScrollRAF = requestAnimationFrame(tick);
+        }
+        function stopEdgeScroll() { if (edgeScrollRAF) { cancelAnimationFrame(edgeScrollRAF); edgeScrollRAF = null; } }
+        function onDragEnd() { isDragging = false; stopEdgeScroll(); }
+
+        actBar.addEventListener('mousedown', onDragStart);
+        actBar.addEventListener('touchstart', onDragStart, { passive: false });
+        window.addEventListener('mousemove', onDragMove);
+        window.addEventListener('touchmove', onDragMove, { passive: false });
+        window.addEventListener('mouseup', onDragEnd);
+        window.addEventListener('touchend', onDragEnd);
+    }
+
+    document.getElementById('camera-toggle').onclick = () => { 
+        isZoomedIn = !isZoomedIn; currentFocusKey = null; 
+        const nowMin = Math.floor((masterStartTime + parseInt(document.getElementById('trip-slider').value) * 60000) / 60000) * 60000;
+        let nState = getPersonState(nicoData, nowMin), yState = getPersonState(yukiData, nowMin);
+        if (isZoomedIn && nState && yState) {
+            let boundsPoints = [];
+            if (showNico && nState) {
+                boundsPoints.push([nState.lat, nState.lng]);
+                if (nState.isTransit) boundsPoints.push([nState.next.Lat, nState.next.Lng]);
+            }
+            if (showYuki && yState) {
+                boundsPoints.push([yState.lat, yState.lng]);
+                if (yState.isTransit) boundsPoints.push([yState.next.Lat, yState.next.Lng]);
+            }
+            if (boundsPoints.length > 0) {
+                let b = L.latLngBounds(boundsPoints);
+                let phaseKey = b.toBBoxString().split(',').map(v => parseFloat(v).toFixed(1)).join(',');
+                if (currentFocusKey !== phaseKey) { currentFocusKey = phaseKey; map.fitBounds(b, { padding: [120, 120], maxZoom: 11, animate: false }); }
+            }
+        } else if (!isZoomedIn && fullMapBounds) { currentFocusKey = "GLOBAL"; map.flyToBounds(fullMapBounds, { padding: [30, 30], duration: 1.0 }); }
+        skipCameraNextRender = true; render(masterStartTime + (parseInt(document.getElementById('trip-slider').value) * 60000)); 
+    };
+    
+    // YUKI COUNTDOWN TICKER - actively updates every second with a physical flap animation
+    setInterval(() => {
+        if (!yukiData || yukiData.length === 0) return;
+        
+        // Find the first actual flight for Yuki
+        const firstFlightRow = yukiData.find(row => isAirTravel(row.Flight));
+        if (!firstFlightRow) return;
+        
+        const startTime = firstFlightRow.timestamp; 
+        const now = Date.now();
+        let diff = startTime - now;
+        
+        let dStr = "00", hStr = "00", mStr = "00", sStr = "00";
+        if (diff > 0) {
+            // Handle up to 99 days safely
+            let days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            dStr = String(days > 99 ? 99 : days).padStart(2, '0');
+            hStr = String(Math.floor((diff / (1000 * 60 * 60)) % 24)).padStart(2, '0');
+            mStr = String(Math.floor((diff / 1000 / 60) % 60)).padStart(2, '0');
+            sStr = String(Math.floor((diff / 1000) % 60)).padStart(2, '0');
+        }
+        
+        const ids = ['d1', 'd2', 'h1', 'h2', 'm1', 'm2', 's1', 's2'];
+        const vals = [dStr[0], dStr[1], hStr[0], hStr[1], mStr[0], mStr[1], sStr[0], sStr[1]];
+        
+        ids.forEach((id, i) => {
+            let el = document.getElementById('cd-' + id);
+            if(el && el.innerText !== vals[i]) {
+                el.classList.remove('flap-animate');
+                void el.offsetWidth; // Trigger DOM reflow to restart CSS animation
+                el.innerText = vals[i];
+                el.classList.add('flap-animate');
+            }
+        });
+    }, 1000);
+
+    loadData();
+</script>
+</body>
+</html>
