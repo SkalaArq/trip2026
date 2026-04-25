@@ -25,7 +25,7 @@
 
             --panam-accent: #1C1C2E;
             --local-time-font-size: 1.2vw;
-            --title-font-size: 0.9vw; 
+            --title-font-size: 1.5vw; 
             --sub-clock-y-offset: -0.25vh; 
             --clipper-blue2: #4A7FB5;
             --cadmium-gold: #D4880A;   
@@ -150,7 +150,7 @@
         .leaflet-container { background: #e8e0d8 !important; }
 
         .day-tiles { filter: brightness(0.97) contrast(1.05) saturate(0.85); }
-        .night-tiles { filter: invert(1) hue-rotate(180deg) brightness(3) contrast(1.5); }
+        .night-tiles { filter: invert(1) hue-rotate(180deg) brightness(3) contrast(1.4); }
 
         .radar-sweep-line { filter: drop-shadow(0px 0px 4px rgba(255, 87, 51, 0.8)) drop-shadow(0px 0px 8px rgba(255, 87, 51, 0.6)); }
 
@@ -231,7 +231,7 @@
 
         .range-wrapper::before { content: ''; position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-50%); height: 6px; background: rgba(255, 255, 255, 0.2); border-radius: 0; border: 1px solid #002244; z-index: 1; }
         .track-fill { position: absolute; left: 0; top: 50%; transform: translateY(-50%); height: 6px; background: var(--clipper-blue2); border-radius: 0; border: 1px solid #002244; z-index: 2; width: 0%; }
-        .tracker-soccer { absolute; width: 1.5vw; height: 1.5vw; top: 50%; transform: translateY(-50%); pointer-events: none; z-index: 4; left: 0; filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.5)); transition: transform 0.1s linear; }
+        .tracker-soccer { position: absolute; width: 1.5vw; height: 1.5vw; top: 50%; transform: translateY(-50%); pointer-events: none; z-index: 4; left: 0; filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.5)); transition: transform 0.1s linear; }
 
         .flight-block { position: absolute; display: flex; align-items: center; justify-content: center; font-size: 0.75vw; font-weight: bold; border-left: 1px solid rgba(0, 34, 68, 0.3); border-right: 1px solid rgba(0, 34, 68, 0.3); box-sizing: border-box; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; padding: 0 4px; }
 
@@ -487,6 +487,7 @@
     const FIXED_PLANE_SZ = 32, FIXED_TRANS_SZ = 41, FIXED_BOY_SZ = 32;   
     
     let nicoData = [], yukiData = [];
+    let nicoByTs = new Map(), yukiByTs = new Map();
     let masterStartTime = 0; 
     let isZoomedIn = true, currentFocusKey = null, fullMapBounds = null, boardStates = {}, skipCameraNextRender = false;
     let showNico = true, showYuki = true;
@@ -593,6 +594,10 @@
             new Promise(resolve => Papa.parse(YUKI_URL, { download: true, header: true, skipEmptyLines: true, complete: r => resolve(r.data) }))
         ]).then(([nicoRaw, yukiRaw]) => {
             nicoData = processRows(nicoRaw); yukiData = processRows(yukiRaw);
+            
+            nicoData.forEach(r => { if (!nicoByTs.has(r.timestamp)) nicoByTs.set(r.timestamp, r); });
+            yukiData.forEach(r => { if (!yukiByTs.has(r.timestamp)) yukiByTs.set(r.timestamp, r); });
+            
             let allData = [...nicoData, ...yukiData];
             cityMarkersLayer.clearLayers(); backgroundLinesLayer.clearLayers();
             let seen = new Set();
@@ -734,8 +739,8 @@
                 tbody.innerHTML = `<tr><td colspan="${showNico && showYuki ? 3 : 2}" style="text-align:center; color:#887a65; font-size:1vw; padding:1vh 0;">NO SCHEDULED ACTIVITY</td></tr>`;
             } else {
                 sortedTs.forEach(ts => {
-                    let nRow = nicoData.find(r => r.timestamp === ts && getAct(r));
-                    let yRow = yukiData.find(r => r.timestamp === ts && getAct(r));
+                    let nRow = nicoByTs.get(ts);
+                    let yRow = yukiByTs.get(ts);
                     
                     let nAct = nRow ? getAct(nRow) : null;
                     let yAct = yRow ? getAct(yRow) : null;
@@ -1058,6 +1063,10 @@
 
     document.getElementById('camera-toggle').onclick = () => { 
         isZoomedIn = !isZoomedIn; currentFocusKey = null; 
+        
+        document.getElementById('camera-icon').innerText = isZoomedIn ? "🌐" : "🧭";
+        document.getElementById('camera-text').innerText = isZoomedIn ? "GLOBAL VIEW" : "ROUTE VIEW";
+
         const nowMin = Math.floor((masterStartTime + parseInt(document.getElementById('trip-slider').value) * 60000) / 60000) * 60000;
         let nState = getPersonState(nicoData, nowMin), yState = getPersonState(yukiData, nowMin);
         if (isZoomedIn && nState && yState) {
