@@ -525,7 +525,18 @@
     let yukiTrajectory = L.polyline([], {color: colorYuki, weight: 4, opacity: 0.9, className: 'radar-sweep-line'}).addTo(map);
 
     const tzLookup = { 'TOKYO': 'Asia/Tokyo', 'NARITA': 'Asia/Tokyo', 'BOGOTA': 'America/Bogota', 'MEXICO CITY': 'America/Mexico_City', 'MIAMI': 'America/New_York', 'DALLAS': 'America/Chicago', 'SAN MARCOS': 'America/Chicago', 'AUSTIN': 'America/Chicago', 'SAN ANTONIO': 'America/Chicago', 'MONTERREY': 'America/Monterrey', 'BOSTON': 'America/New_York', 'HOUSTON': 'America/Chicago', 'LOS ANGELES': 'America/Los_Angeles', 'LAX': 'America/Los_Angeles', 'AT&T STADIUM': 'America/Chicago', 'ESTADIO BBVA': 'America/Monterrey', 'NRG STADIUM': 'America/Chicago' };
-    const logoMap = { 'SQ': 'https://1000logos.net/wp-content/uploads/2020/04/Singapore-Airlines-Logo-1972.jpg', 'AA': 'https://upload.wikimedia.org/wikipedia/commons/2/26/American_Airlines_1967_%28Unused%29_logo.png', 'VB': 'https://upload.wikimedia.org/wikipedia/commons/6/6e/VivaAerobus_logo.png', 'AM': 'https://1000logos.net/wp-content/uploads/2023/05/Aeromexico-Logo-1972.png', 'WN': 'https://1000logos.net/wp-content/uploads/2019/08/Southwest-Logo-1989-2001.png' };
+    const logoMap = { 
+    'SQ': 'https://1000logos.net/wp-content/uploads/2020/04/Singapore-Airlines-Logo-1972.jpg', 
+    'AA': 'https://upload.wikimedia.org/wikipedia/commons/2/26/American_Airlines_1967_%28Unused%29_logo.png', 
+    'VB': 'https://upload.wikimedia.org/wikipedia/commons/6/6e/VivaAerobus_logo.png', 
+    'AM': 'https://1000logos.net/wp-content/uploads/2023/05/Aeromexico-Logo-1972.png', 
+    'WN': 'https://1000logos.net/wp-content/uploads/2019/08/Southwest-Logo-1989-2001.png',
+    'B6': 'https://1000logos.net/wp-content/uploads/2020/04/Logo-JetBlue.jpg',
+    
+    // Your updated vintage/classic choices:
+    'UA': 'https://1000logos.net/wp-content/uploads/2017/06/United-Airlines-Logo-1954.jpg',
+    'F9': 'https://1000logos.net/wp-content/uploads/2020/03/Frontier-Airlines-Logo-1978.jpg' 
+    };
     const weatherMock = { 'TOKYO': '☀️ 22°C CLEAR', 'NARITA': '☀️ 22°C CLEAR', 'BOGOTA': '🌧️ 16°C RAIN', 'MEXICO CITY': '⛅ 24°C PARTLY CLOUDY', 'MIAMI': '☀️ 28°C SUNNY', 'DALLAS': '☀️ 30°C HOT', 'SAN MARCOS': '☀️ 31°C HOT', 'AUSTIN': '☀️ 31°C HOT', 'SAN ANTONIO': '☀️ 32°C HOT', 'MONTERREY': '☀️ 30°C CLEAR', 'BOSTON': '🌧️ 15°C SHOWERS', 'HOUSTON': '⛅ 29°C HUMID', 'LOS ANGELES': '☀️ 25°C SUNNY', 'LAX': '☀️ 25°C SUNNY' };
 
     // DST-Safe High Performance Cache (Keyed by Tz + Absolute Day)
